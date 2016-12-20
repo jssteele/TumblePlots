@@ -10,41 +10,75 @@ library(knitr)
 knitr::opts_chunk$set(comment='')
 ```
 
-```{r}
 # Graphs of modified interaction plots for the GSS data set
 
-
-#setwd("C:/Users/tbodner/Dropbox/Current Work/Graphing Interactions/Examples/GSS/gss spss interaction")
-
+```{r}
 library(foreign)
 data <- read.spss("gssspssreduced.sav", to.data.frame=TRUE)
 
-attach(data)
+#outcome
+DV = data$prestg80
+# target predictor
+tarpred = data$educ
+# moderation predictor
+modpred = data$maeduc
+educ = data$educ
+maeduc = data$maeduc
+```
 
-DV = prestg80
-tarpred = educ
-modpred = maeduc
+## Moderated regression
 
+As a first step we fit the full moderated model.
+
+```{r}
 #Step 1
 mmr <- lm(DV ~ tarpred + modpred + tarpred*modpred)
+kable(summary(mmr)$coefficients, digit=c(3,3,3,4), caption='Moderation Model')
+```
 
+Next we create a new value of $M \pm SD$ for the moderator. 
+
+```{r}
 #Step 2
-lowmod <- mean(modpred)-sqrt(var(modpred))
-highmod <- mean(modpred)+sqrt(var(modpred))
+# store the standard variance
+modvar = var(modpred)
+lowmod <- mean(modpred)-sqrt(modvar)
+highmod <- mean(modpred)+sqrt(modvar)
 
+```
+
+Next we regress the target predictor onto the moderator. From here we predict the new outcomes based on the high and low values for the moderator that we constructed above.
+
+```{r}
 #Step 3
 reg <- lm(tarpred ~ modpred)
 predst3 <- summary.lm(reg)
 tmlm <- predst3$coeff[1,1] + predst3$coeff[2,1]*lowmod
 tmhm <- predst3$coeff[1,1] + predst3$coeff[2,1]*highmod
 
+modpredvals = predict(reg, data.frame('modpred'=c(lowmod,highmod)))
+
+```
+
+To these predicted values we add the standard residual value from the regression involving the predictors.
+
+```{r}
 #Step 4
-tresid <- sqrt(anova(reg)[2,3])
+# residual variance or error of fit.
+tresid = summary(reg)$sigma^2
 hthm <- tmhm+tresid
 lthm <- tmhm-tresid
 htlm <- tmlm+tresid
 ltlm <- tmlm-tresid
 
+tarmodvals = c(rep(modpredvals,each=2) + rep(c(-1,1)*tresid,times=2))
+names(tarmodvals)=c("ltlm","htlm","lthm","hthm")
+
+```
+
+Returning to the full moderated regression model we use these new computed values to create the endpoints of our eventual graphs.
+
+```{r}
 #Step 5
 predhr <- summary.lm(mmr)
 hhhr <- predhr$coeff[1,1] + predhr$coeff[2,1]*hthm + 
@@ -56,6 +90,11 @@ lhhr <- predhr$coeff[1,1] + predhr$coeff[2,1]*lthm +
 llhr <- predhr$coeff[1,1] + predhr$coeff[2,1]*ltlm + 
    predhr$coeff[3,1]*lowmod + predhr$coeff[4,1]*ltlm*lowmod
 
+
+
+```
+
+```{r}
 #Step 6
 prep <- t(matrix(c(hthm,hhhr,htlm,hlhr,lthm,lhhr,ltlm,llhr),2,4))
 plot(prep[,1],prep[,2],ann=FALSE, ylim=c(20,60),xlim=c(5,20))
@@ -65,9 +104,11 @@ mtext("Respondent's Years of Education", side=1, line=2.5, cex=1)
 mtext("Predicted Occupational Prestige", side=2, line=2.5, cex=1)
 legend(6,55,c("14.2 Years (1 SD Above Mean)","7.3 Years (1 SD Below Mean)"),cex=.8, 
   lty=c("solid","dashed"), title="Mother's Years of Education")
+```
 
-# Standard interaction Graph
+## Standard interaction Graph
 
+```{r}
 mtar <- mean(tarpred)
 sdtar <- sqrt(var(tarpred))
 htar <- mtar + sdtar
@@ -89,11 +130,13 @@ mtext("Respondent's Years of Education", side=1, line=2.5, cex=1)
 mtext("Predicted Occupational Prestige", side=2, line=2.5, cex=1)
 legend(6,55,c("14.2 Years (1 SD Above Mean)","7.3 Years (1 SD Below Mean)"),cex=.8, 
   lty=c("solid","dashed"), title="Mother's Years of Education")
+```
 
-# Both together
+### Both together
 
-pdf("gssinteract.pdf", width = 8, height = 10 )
-par(mfrow=c(2,1))
+```{r}
+#pdf("gssinteract.pdf", width = 8, height = 10 )
+op=par(mfrow=c(2,1))
 plot(sprep[,1],sprep[,2],ann=FALSE, ylim=c(30,60),xlim=c(8,18),pch=21)
 segments(htar,shhhr,ltar,slhhr)
 segments(htar,shlhr,ltar,sllhr,lty="dashed")
@@ -108,11 +151,11 @@ mtext("Years of Education", side=1, line=2.5, cex=1)
 mtext("Predicted Occupational Prestige", side=2, line=2.5, cex=1)
 legend(7.7,60,c("14.2 Years (1 SD Above Mean)","7.3 Years (1 SD Below Mean)"),cex=.8, 
   lty=c("solid","dashed"), title="Mother's Years of Education")
-dev.off()
+par(op)
 
 # Bivariate Distribution of Target and Moderator
 
-pdf("gssbivariate.pdf", width = 8, height = 10)
+#pdf("gssbivariate.pdf", width = 8, height = 10)
 plot(jitter(educ, factor=.4),jitter(maeduc,factor=.8),ann=FALSE,pch=20,cex=.6)
 mtext("Years of Education", side=1, line=2.5, cex=1)
 mtext("Mother's Years of Education", side=2, line=2.5, cex=1)
@@ -130,9 +173,7 @@ points(htar,lowmod,pch=21)
 points(ltar,highmod,pch=21)
 points(ltar,lowmod,pch=21)
 
-
-
-pdf("gssbivariate.pdf", width = 8, height = 10)
+#pdf("gssbivariate.pdf", width = 8, height = 10)
 plot(jitter(educ, factor=.4),jitter(maeduc,factor=.4),ann=FALSE,pch=20)
 mtext("Years of Education", side=1, line=2.5, cex=1)
 mtext("Mother's Years of Education", side=2, line=2.5, cex=1)
