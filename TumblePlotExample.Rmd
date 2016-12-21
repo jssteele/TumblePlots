@@ -16,6 +16,7 @@ knitr::opts_chunk$set(comment='')
 library(foreign)
 data <- read.spss("gssspssreduced.sav", to.data.frame=TRUE)
 
+# ABSTRACT OUT
 #outcome
 DV = data$prestg80
 # target predictor
@@ -31,8 +32,11 @@ maeduc = data$maeduc
 As a first step we fit the full moderated model.
 
 ```{r}
+
 #Step 1
+# ABSTRACT OUT
 mmr <- lm(DV ~ tarpred + modpred + tarpred*modpred)
+
 kable(summary(mmr)$coefficients, digit=c(3,3,3,4), caption='Moderation Model')
 ```
 
@@ -41,6 +45,7 @@ Next we create a new value of $M \pm SD$ for the moderator.
 ```{r}
 #Step 2
 # store the standard variance
+# ABSTRACT OUT
 modvar = var(modpred)
 lowmod <- mean(modpred)-sqrt(modvar)
 highmod <- mean(modpred)+sqrt(modvar)
@@ -51,13 +56,20 @@ Next we regress the target predictor onto the moderator. From here we predict th
 
 ```{r}
 #Step 3
+# ABSTRACT OUT
 reg <- lm(tarpred ~ modpred)
 predst3 <- summary.lm(reg)
 tmlm <- predst3$coeff[1,1] + predst3$coeff[2,1]*lowmod
 tmhm <- predst3$coeff[1,1] + predst3$coeff[2,1]*highmod
 
+# prediction based on the model
+# ABSTRACT OUT
 modpredvals = predict(reg, data.frame('modpred'=c(lowmod,highmod)))
-
+# display
+kable(cbind('+/- 1 SD'=c(lowmod,highmod),
+            'Predictions'=modpredvals, 
+            'Direct'=c(tmlm,tmhm)), 
+      digits=4, caption='Moderation values and predictions')
 ```
 
 To these predicted values we add the standard residual value from the regression involving the predictors.
@@ -65,41 +77,65 @@ To these predicted values we add the standard residual value from the regression
 ```{r}
 #Step 4
 # residual variance or error of fit.
+# ABSTRACT OUT
 tresid = summary(reg)$sigma^2
 hthm <- tmhm+tresid
 lthm <- tmhm-tresid
 htlm <- tmlm+tresid
 ltlm <- tmlm-tresid
 
+# ABSTRACT OUT
 tarmodvals = c(rep(modpredvals,each=2) + rep(c(-1,1)*tresid,times=2))
 names(tarmodvals)=c("ltlm","htlm","lthm","hthm")
 
+# quick comparison
+kable(cbind('crossprod'=tarmodvals, 
+            'direct'=c(ltlm,htlm,lthm,hthm)), 
+      digits=4, caption='Comparison of alternative computations')
 ```
 
 Returning to the full moderated regression model we use these new computed values to create the endpoints of our eventual graphs.
 
 ```{r}
 #Step 5
+# new attempt using the data from before along with the model
+# ABSTRACT OUT
+newdat = data.frame('tarpred'=tarmodvals, 'modpred'=c(lowmod,lowmod,highmod,highmod))
+# ABSTRACT OUT
+newdat$"tarpred:modpred" = with(newdat, tarpred*modpred)
 predhr <- summary.lm(mmr)
+
 hhhr <- predhr$coeff[1,1] + predhr$coeff[2,1]*hthm + 
    predhr$coeff[3,1]*highmod + predhr$coeff[4,1]*hthm*highmod
+
 hlhr <- predhr$coeff[1,1] + predhr$coeff[2,1]*htlm + 
    predhr$coeff[3,1]*lowmod + predhr$coeff[4,1]*htlm*lowmod
+
 lhhr <- predhr$coeff[1,1] + predhr$coeff[2,1]*lthm + 
    predhr$coeff[3,1]*highmod + predhr$coeff[4,1]*lthm*highmod
+
 llhr <- predhr$coeff[1,1] + predhr$coeff[2,1]*ltlm + 
    predhr$coeff[3,1]*lowmod + predhr$coeff[4,1]*ltlm*lowmod
 
-
+c(llhr,hlhr,lhhr,hhhr)
+# ABSTRACT OUT
+newdatout = predict(mmr, newdat)
 
 ```
 
+## Plotting set-up
+
 ```{r}
 #Step 6
-prep <- t(matrix(c(hthm,hhhr,htlm,hlhr,lthm,lhhr,ltlm,llhr),2,4))
-plot(prep[,1],prep[,2],ann=FALSE, ylim=c(20,60),xlim=c(5,20))
-segments(hthm,hhhr,lthm,lhhr)
-segments(htlm,hlhr,ltlm,llhr,lty="dashed")
+#prep <- t(matrix(c(hthm,hhhr,htlm,hlhr,lthm,lhhr,ltlm,llhr),2,4))
+prep = cbind(newdat$tarpred, newdatout)
+plot(NA, xlim=range(prep[,1]),ylim=range(prep[,2]), ann=FALSE)
+#plot(prep[,1],prep[,2],ann=FALSE, ylim=c(20,65),xlim=c(5,22))
+#plot(prep[,1],prep[,2],ann=FALSE, ylim=c(20,65),xlim=c(5,22))
+#segments(hthm,hhhr,lthm,lhhr)
+#segments(htlm,hlhr,ltlm,llhr,lty="dashed")
+lines(prep[3:4,1],prep[3:4,2], type='o')
+lines(prep[1:2,1],prep[1:2,2], type='o', lty=2)
 mtext("Respondent's Years of Education", side=1, line=2.5, cex=1)
 mtext("Predicted Occupational Prestige", side=2, line=2.5, cex=1)
 legend(6,55,c("14.2 Years (1 SD Above Mean)","7.3 Years (1 SD Below Mean)"),cex=.8, 
