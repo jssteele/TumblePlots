@@ -16,15 +16,30 @@ knitr::opts_chunk$set(comment='')
 library(foreign)
 data <- read.spss("gssspssreduced.sav", to.data.frame=TRUE)
 
+tumble_set = function(dat, outcome, target, moderator) {
+  form = as.formula(paste(outcome,'~',target,"*",moderator))
+  intrxn_mod = lm(form,data=dat)
+  return(
+    list('full_mod'=intrxn_mod,
+       'outcome'=outcome,
+       'target'=target,
+       'moderator'=moderator,
+       'dataset'=dat)
+  )
+}
+
+GSS_tumble = tumble_set(data, 'prestg80','educ','maeduc')
+
 # ABSTRACT OUT
 #outcome
-DV = data$prestg80
-# target predictor
-tarpred = data$educ
-# moderation predictor
-modpred = data$maeduc
-educ = data$educ
-maeduc = data$maeduc
+# DV = data$prestg80
+# # target predictor
+# tarpred = data$educ
+# # moderation predictor
+# modpred = data$maeduc
+# educ = data$educ
+# maeduc = data$maeduc
+
 ```
 
 ## Moderated regression
@@ -35,9 +50,9 @@ As a first step we fit the full moderated model.
 
 #Step 1
 # ABSTRACT OUT
-mmr <- lm(DV ~ tarpred + modpred + tarpred*modpred)
-
-kable(summary(mmr)$coefficients, digit=c(3,3,3,4), caption='Moderation Model')
+# mmr <- lm(DV ~ tarpred + modpred + tarpred*modpred)
+# 
+# kable(summary(mmr)$coefficients, digit=c(3,3,3,4), caption='Moderation Model')
 ```
 
 Next we create a new value of $M \pm SD$ for the moderator. 
@@ -49,6 +64,14 @@ Next we create a new value of $M \pm SD$ for the moderator.
 modvar = var(modpred)
 lowmod <- mean(modpred)-sqrt(modvar)
 highmod <- mean(modpred)+sqrt(modvar)
+
+mod_set = function(tumble){
+  mod_sd = sd(tumble$dataset[,tumble$moderator])
+  mod_mu = mean(tumble$dataset[,tumble$moderator])
+  mod_low = mean(modpred)-modvar
+  mod_high = mean(modpred)+modvar
+
+}
 
 ```
 
