@@ -158,6 +158,8 @@ legend("topleft",c("14.2 Years (1 SD Above Mean)","7.3 Years (1 SD Below Mean)")
    
 ## Standard interaction Graph
 
+Need to update this to match the format from above.
+
 ```{r}
 mtar <- mean(tarpred)
 sdtar <- sqrt(var(tarpred))
@@ -183,25 +185,26 @@ legend(6,55,c("14.2 Years (1 SD Above Mean)","7.3 Years (1 SD Below Mean)"),cex=
 ```
 
 ### Both together
+Also need to code up a way to use layout and display them both.
 
 ```{r}
 #pdf("gssinteract.pdf", width = 8, height = 10 )
-op=par(mfrow=c(2,1))
-plot(sprep[,1],sprep[,2],ann=FALSE, ylim=c(30,60),xlim=c(8,18),pch=21)
-segments(htar,shhhr,ltar,slhhr)
-segments(htar,shlhr,ltar,sllhr,lty="dashed")
-mtext("Years of Education", side=1, line=2.5, cex=1)
-mtext("Predicted Occupational Prestige", side=2, line=2.5, cex=1)
-legend(7.7,60,c("14.2 Years (1 SD Above Mean)","7.3 Years (1 SD Below Mean)"),cex=.8, 
-  lty=c("solid","dashed"), title="Mother's Years of Education")
-plot(prep[,1],prep[,2],ann=FALSE, ylim=c(30,60),xlim=c(8,18),pch=24)
-segments(hthm,hhhr,lthm,lhhr)
-segments(htlm,hlhr,ltlm,llhr,lty="dashed")
-mtext("Years of Education", side=1, line=2.5, cex=1)
-mtext("Predicted Occupational Prestige", side=2, line=2.5, cex=1)
-legend(7.7,60,c("14.2 Years (1 SD Above Mean)","7.3 Years (1 SD Below Mean)"),cex=.8, 
-  lty=c("solid","dashed"), title="Mother's Years of Education")
-par(op)
+# op=par(mfrow=c(2,1))
+# plot(sprep[,1],sprep[,2],ann=FALSE, ylim=c(30,60),xlim=c(8,18),pch=21)
+# segments(htar,shhhr,ltar,slhhr)
+# segments(htar,shlhr,ltar,sllhr,lty="dashed")
+# mtext("Years of Education", side=1, line=2.5, cex=1)
+# mtext("Predicted Occupational Prestige", side=2, line=2.5, cex=1)
+# legend(7.7,60,c("14.2 Years (1 SD Above Mean)","7.3 Years (1 SD Below Mean)"),cex=.8, 
+#   lty=c("solid","dashed"), title="Mother's Years of Education")
+# plot(prep[,1],prep[,2],ann=FALSE, ylim=c(30,60),xlim=c(8,18),pch=24)
+# segments(hthm,hhhr,lthm,lhhr)
+# segments(htlm,hlhr,ltlm,llhr,lty="dashed")
+# mtext("Years of Education", side=1, line=2.5, cex=1)
+# mtext("Predicted Occupational Prestige", side=2, line=2.5, cex=1)
+# legend(7.7,60,c("14.2 Years (1 SD Above Mean)","7.3 Years (1 SD Below Mean)"),cex=.8, 
+#   lty=c("solid","dashed"), title="Mother's Years of Education")
+# par(op)
 
 # Bivariate Distribution of Target and Moderator
 
@@ -232,22 +235,23 @@ points(ltar,lowmod,pch=19)
 # points(ltar,lowmod,pch=21)
 
 #pdf("gssbivariate.pdf", width = 8, height = 10)
-plot(jitter(educ, factor=.4),jitter(maeduc,factor=.4),ann=FALSE,pch=20)
-mtext("Years of Education", side=1, line=2.5, cex=1)
-mtext("Mother's Years of Education", side=2, line=2.5, cex=1)
-abline(v = ltar, lty="dashed")
-abline(v = htar)
-abline(h = lowmod, lty="dashed")
-abline(h = highmod)
-legend(0,20,c("1 SD Below Mean","1 SD Above Mean"),cex=.8, lty=c("dashed","solid"), title="Reference Lines")
-points(hthm,highmod,pch=24)
-points(htlm,lowmod,pch=24)
-points(lthm,highmod,pch=24)
-points(ltlm,lowmod,pch=24)
-points(htar,highmod,pch=21)
-points(htar,lowmod,pch=21)
-points(ltar,highmod,pch=21)
-points(ltar,lowmod,pch=21)
+# plot(jitter(educ, factor=.4),jitter(maeduc,factor=.4),ann=FALSE,pch=20)
+# mtext("Years of Education", side=1, line=2.5, cex=1)
+# mtext("Mother's Years of Education", side=2, line=2.5, cex=1)
+# abline(v = ltar, lty="dashed")
+# abline(v = htar)
+# abline(h = lowmod, lty="dashed")
+# abline(h = highmod)
+# legend(0,20,c("1 SD Below Mean","1 SD Above Mean"),cex=.8, lty=c("dashed","solid"), title="Reference Lines")
+# points(hthm,highmod,pch=24)
+# points(htlm,lowmod,pch=24)
+# points(lthm,highmod,pch=24)
+# points(ltlm,lowmod,pch=24)
+# points(htar,highmod,pch=21)
+# points(htar,lowmod,pch=21)
+# points(ltar,highmod,pch=21)
+# points(ltar,lowmod,pch=21)
+
 ```
 
 
