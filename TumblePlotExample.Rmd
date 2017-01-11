@@ -101,6 +101,8 @@ Returning to the full moderated regression model we use these new computed value
 # new attempt using the data from before along with the model
 # ABSTRACT OUT
 newdat = data.frame('tarpred'=tarmodvals, 'modpred'=c(lowmod,lowmod,highmod,highmod))
+build_dat = cbind(newdat, 'target'=rep(c('low','high'),times=2), 'moderator'=rep(c('low','high'),each=2))
+
 # ABSTRACT OUT
 newdat$"tarpred:modpred" = with(newdat, tarpred*modpred)
 predhr <- summary.lm(mmr)
@@ -120,6 +122,8 @@ llhr <- predhr$coeff[1,1] + predhr$coeff[2,1]*ltlm +
 predicted_values = c(llhr,hlhr,lhhr,hhhr)
 # ABSTRACT OUT
 newdatout = predict(mmr, newdat)
+# update our built data frame
+build_dat = cbind(build_dat, newdatout)
 
 ```
 
@@ -142,6 +146,16 @@ mtext("Respondent's Years of Education", side=1, line=2.5, cex=1)
 mtext("Predicted Occupational Prestige", side=2, line=2.5, cex=1)
 legend(6,55,c("14.2 Years (1 SD Above Mean)","7.3 Years (1 SD Below Mean)"),cex=.8, 
   lty=c("solid","dashed"), title="Mother's Years of Education")
+
+# latest attempt
+plot(NA, xlim=range(build_dat$tarpred), ylim=range(build_dat$newdatout), ann=FALSE)
+with(build_dat[build_dat$moderator=='high',], lines(newdatout ~ tarpred, type='o'))
+with(build_dat[build_dat$moderator!='high',], lines(newdatout ~ tarpred, type='o', lty='dashed'))
+mtext("Respondent's Years of Education", side=1, line=2.5, cex=1)
+mtext("Predicted Occupational Prestige", side=2, line=2.5, cex=1)
+legend("topleft",c("14.2 Years (1 SD Above Mean)","7.3 Years (1 SD Below Mean)"),cex=.8, 
+  lty=c("solid","dashed"), title="Mother's Years of Education", bty='n',inset=.01)
+
 ```
 
 ## Standard interaction Graph
