@@ -116,8 +116,8 @@ lhhr <- predhr$coeff[1,1] + predhr$coeff[2,1]*lthm +
 
 llhr <- predhr$coeff[1,1] + predhr$coeff[2,1]*ltlm + 
    predhr$coeff[3,1]*lowmod + predhr$coeff[4,1]*ltlm*lowmod
-mdscope=new.env(parent=emptyenv())
-mdscope$predicted_values = c(llhr,hlhr,lhhr,hhhr)
+
+predicted_values = c(llhr,hlhr,lhhr,hhhr)
 # ABSTRACT OUT
 newdatout = predict(mmr, newdat)
 
@@ -135,7 +135,8 @@ segments(htlm,hlhr,ltlm,llhr,lty="dashed")
 prep2 = cbind(newdat$tarpred, newdatout)
 plot(NA, xlim=range(prep[,1]),ylim=range(prep[,2]), ann=FALSE)
 #plot(prep[,1],prep[,2],ann=FALSE, ylim=c(20,65),xlim=c(5,22))
-lines(prep[3:4,1],prep[3:4,2], type='o')
+# Still needs fixing
+lines(prep2[3:4,1], prep2[3:4,2], type='o')
 lines(prep[1:2,1],prep[1:2,2], type='o', lty=2)
 mtext("Respondent's Years of Education", side=1, line=2.5, cex=1)
 mtext("Predicted Occupational Prestige", side=2, line=2.5, cex=1)
