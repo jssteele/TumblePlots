@@ -129,25 +129,22 @@ build_dat = cbind(build_dat, newdatout)
 
 ## Plotting set-up
 
-```{r}
+Original Tumble-Plot
+```{r, echo=TRUE}
 #Step 6
 prep <- t(matrix(c(hthm,hhhr,htlm,hlhr,lthm,lhhr,ltlm,llhr),2,4))
 plot(prep[,1],prep[,2],ann=FALSE, ylim=c(20,65),xlim=c(5,22))
 segments(hthm,hhhr,lthm,lhhr)
 segments(htlm,hlhr,ltlm,llhr,lty="dashed")
-
-prep2 = cbind(newdat$tarpred, newdatout)
-plot(NA, xlim=range(prep[,1]),ylim=range(prep[,2]), ann=FALSE)
-#plot(prep[,1],prep[,2],ann=FALSE, ylim=c(20,65),xlim=c(5,22))
-# Still needs fixing
-lines(prep2[3:4,1], prep2[3:4,2], type='o')
-lines(prep[1:2,1],prep[1:2,2], type='o', lty=2)
 mtext("Respondent's Years of Education", side=1, line=2.5, cex=1)
 mtext("Predicted Occupational Prestige", side=2, line=2.5, cex=1)
 legend(6,55,c("14.2 Years (1 SD Above Mean)","7.3 Years (1 SD Below Mean)"),cex=.8, 
   lty=c("solid","dashed"), title="Mother's Years of Education")
+```
 
-# latest attempt
+Abstracted out code.
+
+```{r, echo=TRUE}
 plot(NA, xlim=range(build_dat$tarpred), ylim=range(build_dat$newdatout), ann=FALSE)
 with(build_dat[build_dat$moderator=='high',], lines(newdatout ~ tarpred, type='o'))
 with(build_dat[build_dat$moderator!='high',], lines(newdatout ~ tarpred, type='o', lty='dashed'))
@@ -157,7 +154,8 @@ legend("topleft",c("14.2 Years (1 SD Above Mean)","7.3 Years (1 SD Below Mean)")
   lty=c("solid","dashed"), title="Mother's Years of Education", bty='n',inset=.01)
 
 ```
-
+   
+   
 ## Standard interaction Graph
 
 ```{r}
@@ -208,7 +206,7 @@ par(op)
 # Bivariate Distribution of Target and Moderator
 
 #pdf("gssbivariate.pdf", width = 8, height = 10)
-plot(jitter(educ, factor=.4),jitter(maeduc,factor=.8),ann=FALSE,pch=20,cex=.6)
+plot(jitter(educ, factor=.4),jitter(maeduc,factor=.8),ann=FALSE,pch=20,cex=.6, col='grey60')
 mtext("Years of Education", side=1, line=2.5, cex=1)
 mtext("Mother's Years of Education", side=2, line=2.5, cex=1)
 abline(v = ltar, lty="dashed")
@@ -216,14 +214,22 @@ abline(v = htar)
 abline(h = lowmod, lty="dashed")
 abline(h = highmod)
 legend(0,20,c("1 SD Below Mean","1 SD Above Mean"),cex=.8, lty=c("dashed","solid"), title="Reference Lines")
-points(hthm,highmod,pch=24)
-points(htlm,lowmod,pch=24)
-points(lthm,highmod,pch=24)
-points(ltlm,lowmod,pch=24)
-points(htar,highmod,pch=21)
-points(htar,lowmod,pch=21)
-points(ltar,highmod,pch=21)
-points(ltar,lowmod,pch=21)
+points(hthm,highmod,pch=17)
+points(htlm,lowmod,pch=17)
+points(lthm,highmod,pch=17)
+points(ltlm,lowmod,pch=17)
+points(htar,highmod,pch=19)
+points(htar,lowmod,pch=19)
+points(ltar,highmod,pch=19)
+points(ltar,lowmod,pch=19)
+# points(hthm,highmod,pch=24)
+# points(htlm,lowmod,pch=24)
+# points(lthm,highmod,pch=24)
+# points(ltlm,lowmod,pch=24)
+# points(htar,highmod,pch=21)
+# points(htar,lowmod,pch=21)
+# points(ltar,highmod,pch=21)
+# points(ltar,lowmod,pch=21)
 
 #pdf("gssbivariate.pdf", width = 8, height = 10)
 plot(jitter(educ, factor=.4),jitter(maeduc,factor=.4),ann=FALSE,pch=20)
