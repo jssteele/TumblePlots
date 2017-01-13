@@ -10,6 +10,20 @@ library(knitr)
 knitr::opts_chunk$set(comment='')
 ```
 
+```{r}
+# Things needed for Tumbleplots.
+# 1) Set up the moderation regression for the outcome.
+# 2) Set up the regression for the target and moderator variable
+# 3) Get the mean and sd for the moderator.
+# 4) Get the mean and sd for the target predictor.
+# 5) Compute 1 sd above and 1 sd below mean for moderator.
+# 6) Plot tumble.
+# 7) Plot scatter with jitter. 
+# 8) Store the outcome, target, and moderator.
+# 9) Store the dataframe used for the models.
+
+```
+
 # Graphs of modified interaction plots for the GSS data set
 
 ```{r}
@@ -68,10 +82,12 @@ highmod <- mean(modpred)+sqrt(modvar)
 mod_set = function(tumble){
   mod_sd = sd(tumble$dataset[,tumble$moderator])
   mod_mu = mean(tumble$dataset[,tumble$moderator])
-  mod_low = mean(modpred)-modvar
-  mod_high = mean(modpred)+modvar
-
+  tumble$mod_low = mod_mu-mod_sd
+  tumble$mod_high = mod_mu+mod_sd
+  return(tumble)
 }
+
+GSS_tumble = mod_set(GSS_tumble)
 
 ```
 
