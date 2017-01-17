@@ -70,7 +70,8 @@ tumble_set = function(dat, outcome, target, moderator) {
     'moderator'=rep(c('low','high'),each=2))
   tumble_predictions = predict(intrxn_model, intrxn_prediction_data)
   # update our data.frame
-  intrxn_prediction_data$tumble_values = tumble_predictions
+  prediction=paste(outcome,'hat',sep='_')
+  intrxn_prediction_data[,prediction] = tumble_predictions
   return(list(
     'interaction_model'=intrxn_model,
     'input_model'=inputs_model,
@@ -78,25 +79,25 @@ tumble_set = function(dat, outcome, target, moderator) {
     'target'=target,
     'moderator'=moderator,
     'outcome'=outcome,
+    'prediction'=prediction,
     'target_desc'=target_desc,
     'moderator_desc'=moderator_desc,
     'highmod'=highmod,
     'lowmod'=lowmod))
 }
 
-GSS_tumble = tumble_set(data, 'prestg80','educ','maeduc')
-
 tumble_plot=function(tumble_dat, axis_labels=c('x','y'),legend_title=NA){
   # name of the column designated as the predictor of interest
-  target = tumble_dat$target
+  input = tumble_dat$target
+  output = tumble_dat$prediction
   plot_data = tumble_dat$tumble_data
   # blank canvas set up for plotting  
   plot(NA, 
-       xlim=range(plot_data[,target]), 
-       ylim=range(plot_data[,"tumble_values"]), 
+       xlim=range(plot_data[,input]), 
+       ylim=range(plot_data[,output]), 
        ann=FALSE)
   # formula for lines
-  plot_formula = as.formula(paste("tumble_values","~",target))
+  plot_formula = as.formula(paste(output,"~",input))
   # for each level of the moderator, here "high" and "low"
   lines(plot_formula, 
         data=plot_data[plot_data$moderator=='high',],
@@ -123,10 +124,89 @@ tumble_plot=function(tumble_dat, axis_labels=c('x','y'),legend_title=NA){
   }  
 }
 
+# call to plot standard interaction graph
+intrxn_plot = function(tumble_data,axis_labels=c('x','y'), legend_title=NA){
+  # name of the column designated as the predictor of interest
+  plot_model = tumble_data$interaction_model
+  highmod = tumble_data$highmod
+  lowmod = tumble_data$lowmod
+  target_mean = tumble_data$target_desc['mean']
+  target_sd = tumble_data$target_desc['sd']
+  hightarget = target_mean + target_sd
+  lowtarget = target_mean - target_sd
+  # prediction setup
+  prediction_data = data.frame(
+    rep(c(lowtarget,hightarget), each=2),
+    rep(c(lowmod,highmod), times=2),
+    c(rep(c(lowtarget,hightarget), each=2)
+    *rep(c(lowmod,highmod), times=2)))
+  # reuse names from the model coefficients minus the (Intercept)
+  names(prediction_data) = names(coef(plot_model))[-1]
+  # factor labels for plotting
+  prediction_data = cbind(
+    prediction_data,
+    'target'=rep(c('low','high'),each=2),
+    'moderator'=rep(c('low','high'),times=2))
+  # model predictions
+  standard_predictions = predict(plot_model,prediction_data)
+  prediction_data[,tumble_data$prediction] = standard_predictions
+  standard_plot_data = list(
+    'highmod'=tumble_data$highmod,
+    'lowmod'=tumble_data$lowmod,
+    'target'=tumble_data$target,
+    'prediction'=tumble_data$prediction,
+    'tumble_data'=prediction_data)
+  # call our plotting function
+  tumble_plot(standard_plot_data,
+            axis_labels= axis_labels, 
+            legend_title=legend_title)  
+}
+
+# call to set up data
+GSS_tumble = tumble_set(data, 'prestg80','educ','maeduc')
+# call to plot tumble plot
 tumble_plot(GSS_tumble,
             axis_labels=c("Respondent's Years of Education",
                           "Predicted Occupational Prestige"), 
             legend_title = "Mother's Years of Education")
+# call standard interaction plot
+intrxn_plot(GSS_tumble,axis_labels=c("Respondent's Years of Education",
+                          "Predicted Occupational Prestige"), 
+            legend_title = "Mother's Years of Education")
+
+### legacy below here
+# call to combine
+op = par()
+#two_plots = layout(matrix(c(1,2),ncol=1))
+par()
+tumble_plot(GSS_tumble,
+            axis_labels=c("Respondent's Years of Education",
+                          "Predicted Prestige"), 
+            legend_title = "Mother's Years of Education")
+# call standard interaction plot
+intrxn_plot(GSS_tumble,axis_labels=c("Respondent's Years of Education",
+                          "Predicted Prestige"), 
+            legend_title = "Mother's Years of Education")
+show(two_plots)
+
+# call to plot scatterplot comparisons
+plot(jitter(educ, factor=.4),jitter(maeduc,factor=.8),ann=FALSE,pch=20,cex=.6, col='grey60')
+mtext("Years of Education", side=1, line=2.5, cex=1)
+mtext("Mother's Years of Education", side=2, line=2.5, cex=1)
+abline(v = ltar, lty="dashed")
+abline(v = htar)
+abline(h = lowmod, lty="dashed")
+abline(h = highmod)
+legend(0,20,c("1 SD Below Mean","1 SD Above Mean"),cex=.8, lty=c("dashed","solid"), title="Reference Lines")
+points(hthm,highmod,pch=17)
+points(htlm,lowmod,pch=17)
+points(lthm,highmod,pch=17)
+points(ltlm,lowmod,pch=17)
+points(htar,highmod,pch=19)
+points(htar,lowmod,pch=19)
+points(ltar,highmod,pch=19)
+points(ltar,lowmod,pch=19)
+
 ```
    
    
@@ -135,27 +215,7 @@ tumble_plot(GSS_tumble,
 Need to update this to match the format from above.
 
 ```{r}
-mtar <- mean(tarpred)
-sdtar <- sqrt(var(tarpred))
-htar <- mtar + sdtar
-ltar <- mtar - sdtar
-shhhr <- predhr$coeff[1,1] + predhr$coeff[2,1]*htar + 
-   predhr$coeff[3,1]*highmod + predhr$coeff[4,1]*htar*highmod
-shlhr <- predhr$coeff[1,1] + predhr$coeff[2,1]*htar + 
-   predhr$coeff[3,1]*lowmod + predhr$coeff[4,1]*htar*lowmod
-slhhr <- predhr$coeff[1,1] + predhr$coeff[2,1]*ltar + 
-   predhr$coeff[3,1]*highmod + predhr$coeff[4,1]*ltar*highmod
-sllhr <- predhr$coeff[1,1] + predhr$coeff[2,1]*ltar + 
-   predhr$coeff[3,1]*lowmod + predhr$coeff[4,1]*ltar*lowmod
-sprep <- t(matrix(c(htar,shhhr,htar,shlhr,ltar,slhhr,ltar,sllhr),2,4))
 
-plot(sprep[,1],sprep[,2],ann=FALSE, ylim=c(20,60),xlim=c(5,20))
-segments(htar,shhhr,ltar,slhhr,lty="dashed")
-segments(htar,shlhr,ltar,sllhr)
-mtext("Respondent's Years of Education", side=1, line=2.5, cex=1)
-mtext("Predicted Occupational Prestige", side=2, line=2.5, cex=1)
-legend(6,55,c("14.2 Years (1 SD Above Mean)","7.3 Years (1 SD Below Mean)"),cex=.8, 
-  lty=c("solid","dashed"), title="Mother's Years of Education")
 ```
 
 ### Both together
