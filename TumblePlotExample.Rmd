@@ -26,108 +26,99 @@ library(foreign)
 data <- read.spss("gssspssreduced.sav", to.data.frame=TRUE)
 
 tumble_set = function(dat, outcome, target, moderator) {
-  #=================#
-  # Regression Models
-  #=================#
   # full interaction model
-  formula_intrxn = as.formula(paste(outcome,'~',target,"*",moderator))
-  intrxn_model = lm(formula_intrxn,data=dat)
-
-  # model between predictors
-  formula_inputs = as.formula(paste(target,'~',moderator))
-  inputs_model = lm(formula_inputs,data=dat)
-
-  #=================#
-  # descriptives
-  #=================#
+  intrxn_formula = as.formula(paste(outcome,'~',target,"*",moderator))
+  intrxn_model = lm(intrxn_formula,data=dat)
+  # model between predictors, target as outcome of moderator
+  inputs_formula = as.formula(paste(target,'~',moderator))
+  inputs_model = lm(inputs_formula,data=dat)
   # descriptives for predictor inputs
   target_desc = c('mean'=mean(dat[,target]),
                   'sd'=sd(dat[,target]))
   moderator_desc = c('mean'=mean(dat[,moderator]),
                      'sd'=sd(dat[,moderator]))
-  
-  # +/- 1 SD values for moderator
+  # computation of +/- 1 SD values for moderator
   lowmod <- moderator_desc['mean']-moderator_desc['sd']
   highmod <- moderator_desc['mean']+moderator_desc['sd']
-
-  # prediction based on the model
-  # target mean, low and high moderator
-  moderator_prediction_data = data.frame(c(lowmod,highmod))
-  names(moderator_prediction_data) = names(coef(inputs_model))[-1]
-  moderator_predicted_targets = predict(
-    inputs_model, moderator_prediction_data)
-
+  # target values predicted for low and high moderator
+  inputs_prediction_data = data.frame(c(lowmod,highmod))
+  # reuse names from the inputs model, leave out (Intercept) term
+  names(inputs_prediction_data) = names(coef(inputs_model))[-1]
+  predicted_targets = predict(inputs_model, inputs_prediction_data)
+  # standard error of estimate for target as an outcome
   target_residual = summary(inputs_model)$sigma
-
+  # Adjust the predicted values by adding/subtracting the se
+  # low target w/ low moderator
+  # high target w/ low moderator
+  # low target w/ high moderator
+  # high target w/ high moderator
   adjusted_predicted_targets = c(
-    rep(moderator_predicted_targets,each=2) 
-    + rep(c(-1,1)*target_residual,times=2)
-    )
-  names(adjusted_predicted_targets)=c("ltlm","htlm","lthm","hthm")
-
+    rep(predicted_targets,each=2) 
+    + rep(c(-1,1)*target_residual,times=2))
   # construct the prediction data data.frame
-  prediction_data = data.frame(
-    adjusted_predicted_targets,
-    c(lowmod,lowmod,highmod,highmod),
-    c(adjusted_predicted_targets * c(lowmod,lowmod,highmod,highmod))
-    )
-  names(prediction_data) = names(coef(intrxn_model))[-1]
-  # add some factor labels
-  prediction_data = cbind(prediction_data, 
-                          'target'=rep(c('low','high'),times=2), 
-                          'moderator'=rep(c('low','high'),each=2))
-  
-  tumble_predictions = predict(intrxn_model, prediction_data)
+  intrxn_prediction_data = data.frame(
+    adjusted_predicted_targets,          # target input
+    c(lowmod,lowmod,highmod,highmod),    # moderator input
+    c(adjusted_predicted_targets         # interaction term
+      *c(lowmod,lowmod,highmod,highmod)))
+  # names from the interaction model, leave out (Intercept)
+  names(intrxn_prediction_data) = names(coef(intrxn_model))[-1]
+  # add some factor labels to indicate the computations.
+  intrxn_prediction_data = cbind(
+    intrxn_prediction_data,
+    'target'=rep(c('low','high'),times=2),
+    'moderator'=rep(c('low','high'),each=2))
+  tumble_predictions = predict(intrxn_model, intrxn_prediction_data)
   # update our data.frame
-  prediction_data$tumble_values = tumble_predictions
-  
-  return(
-    list('interaction_model'=intrxn_model,
-         'input_model'=inputs_model,
-         'tumble_data'=prediction_data,
-         
-         'target'=target,
-         'moderator'=moderator,
-         'outcome'=outcome,
-         'target_desc'=target_desc,
-         'moderator_desc'=moderator_desc,
-         'highmod'=highmod,
-         'lowmod'=lowmod)
-  
-  )
+  intrxn_prediction_data$tumble_values = tumble_predictions
+  return(list(
+    'interaction_model'=intrxn_model,
+    'input_model'=inputs_model,
+    'tumble_data'=intrxn_prediction_data,
+    'target'=target,
+    'moderator'=moderator,
+    'outcome'=outcome,
+    'target_desc'=target_desc,
+    'moderator_desc'=moderator_desc,
+    'highmod'=highmod,
+    'lowmod'=lowmod))
 }
 
 GSS_tumble = tumble_set(data, 'prestg80','educ','maeduc')
 
 tumble_plot=function(tumble_dat, axis_labels=c('x','y'),legend_title=NA){
-
+  # name of the column designated as the predictor of interest
   target = tumble_dat$target
   plot_data = tumble_dat$tumble_data
-  
+  # blank canvas set up for plotting  
   plot(NA, 
        xlim=range(plot_data[,target]), 
        ylim=range(plot_data[,"tumble_values"]), 
        ann=FALSE)
+  # formula for lines
   plot_formula = as.formula(paste("tumble_values","~",target))
-
+  # for each level of the moderator, here "high" and "low"
   lines(plot_formula, 
         data=plot_data[plot_data$moderator=='high',],
         type='o')
   lines(plot_formula, 
         data=plot_data[plot_data$moderator!='high',],
         type='o', lty='dashed')
-  
+  # annotations to the plot
   mtext(axis_labels[1], side=1, line=2.5, cex=1)
   mtext(axis_labels[2], side=2, line=2.5, cex=1)
-  
+  # add a legend
+  legend_text=c(
+    paste(round(tumble_dat$highmod,3),'(1 SD Above Mean)'),
+    paste(round(tumble_dat$lowmod,3),'(1 SD Below Mean)'))
+  # add a legend title if specified
   if(!is.na(legend_title)){
-    legend_text=c(
-      paste(round(tumble_dat$highmod,3),'(1 SD Above Mean)'),
-      paste(round(tumble_dat$lowmod,3),'(1 SD Below Mean)')
-    )
     legend("topleft",legend_text,cex=.8,
            lty=c("solid","dashed"), 
            title=legend_title, 
+           bty='n',inset=.01)
+  }else{legend("topleft",legend_text,cex=.8,
+           lty=c("solid","dashed"), 
            bty='n',inset=.01)
   }  
 }
@@ -136,26 +127,6 @@ tumble_plot(GSS_tumble,
             axis_labels=c("Respondent's Years of Education",
                           "Predicted Occupational Prestige"), 
             legend_title = "Mother's Years of Education")
-
-#Step 6
-#Abstracted out code.
-plot(NA, xlim=range(build_dat$tarpred), ylim=range(build_dat$newdatout), ann=FALSE)
-with(build_dat[build_dat$moderator=='high',], lines(newdatout ~ tarpred, type='o'))
-with(build_dat[build_dat$moderator!='high',], lines(newdatout ~ tarpred, type='o', lty='dashed'))
-mtext("Respondent's Years of Education", side=1, line=2.5, cex=1)
-mtext("Predicted Occupational Prestige", side=2, line=2.5, cex=1)
-legend("topleft",c("14.2 Years (1 SD Above Mean)","7.3 Years (1 SD Below Mean)"),cex=.8, 
-  lty=c("solid","dashed"), title="Mother's Years of Education", bty='n',inset=.01)
-
-
-# plot(NA, xlim=range(build_dat$tarpred), ylim=range(build_dat$newdatout), ann=FALSE)
-# with(build_dat[build_dat$moderator=='high',], lines(newdatout ~ tarpred, type='o'))
-# with(build_dat[build_dat$moderator!='high',], lines(newdatout ~ tarpred, type='o', lty='dashed'))
-# mtext("Respondent's Years of Education", side=1, line=2.5, cex=1)
-# mtext("Predicted Occupational Prestige", side=2, line=2.5, cex=1)
-# legend("topleft",c("14.2 Years (1 SD Above Mean)","7.3 Years (1 SD Below Mean)"),cex=.8, 
-#   lty=c("solid","dashed"), title="Mother's Years of Education", bty='n',inset=.01)
-
 ```
    
    
