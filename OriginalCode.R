@@ -82,8 +82,8 @@ legend(6,55,c("14.2 Years (1 SD Above Mean)","7.3 Years (1 SD Below Mean)"),cex=
 pdf("gssinteract.pdf", width = 8, height = 10 )
 par(mfrow=c(2,1))
 plot(sprep[,1],sprep[,2],ann=FALSE, ylim=c(30,60),xlim=c(8,18),pch=21)
-segments(htar,shhhr,ltar,slhhr)
-segments(htar,shlhr,ltar,sllhr,lty="dashed")
+segments(htar,shhhr,ltar,slhhr,lty="dashed")
+segments(htar,shlhr,ltar,sllhr)
 mtext("Years of Education", side=1, line=2.5, cex=1)
 mtext("Predicted Occupational Prestige", side=2, line=2.5, cex=1)
 legend(7.7,60,c("14.2 Years (1 SD Above Mean)","7.3 Years (1 SD Below Mean)"),cex=.8, 
