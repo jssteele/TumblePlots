@@ -86,16 +86,23 @@ tumble_set = function(dat, outcome, target, moderator) {
     'lowmod'=lowmod))
 }
 
-tumble_plot=function(tumble_dat, axis_labels=c('x','y'),legend_title=NA){
+tumble_plot=function(tumble_dat, axis_labels=c('x','y'),legend_title=NA,plot_limits){
   # name of the column designated as the predictor of interest
   input = tumble_dat$target
   output = tumble_dat$prediction
   plot_data = tumble_dat$tumble_data
   # blank canvas set up for plotting  
-  plot(NA, 
-       xlim=range(plot_data[,input]), 
-       ylim=range(plot_data[,output]), 
-       ann=FALSE)
+  if(!missing(plot_limits)){
+    plot(NA, 
+         xlim=plot_limits[[1]], 
+         ylim=plot_limits[[2]], 
+         ann=FALSE)
+  }else{
+    plot(NA, 
+         xlim=range(plot_data[,input]), 
+         ylim=range(plot_data[,output]), 
+         ann=FALSE)
+  }
   # formula for lines
   plot_formula = as.formula(paste(output,"~",input))
   # for each level of the moderator, here "high" and "low"
@@ -110,8 +117,8 @@ tumble_plot=function(tumble_dat, axis_labels=c('x','y'),legend_title=NA){
   mtext(axis_labels[2], side=2, line=2.5, cex=1)
   # add a legend
   legend_text=c(
-    paste(round(tumble_dat$highmod,3),'(1 SD Above Mean)'),
-    paste(round(tumble_dat$lowmod,3),'(1 SD Below Mean)'))
+    paste(round(tumble_dat$highmod,1),'(1 SD Above Mean)'),
+    paste(round(tumble_dat$lowmod,1),'(1 SD Below Mean)'))
   # add a legend title if specified
   if(!is.na(legend_title)){
     legend("topleft",legend_text,cex=.8,
@@ -125,7 +132,7 @@ tumble_plot=function(tumble_dat, axis_labels=c('x','y'),legend_title=NA){
 }
 
 # call to plot standard interaction graph
-intrxn_plot = function(tumble_data,axis_labels=c('x','y'), legend_title=NA){
+intrxn_plot = function(tumble_data,axis_labels=c('x','y'), legend_title=NA, plot_limits){
   # name of the column designated as the predictor of interest
   plot_model = tumble_data$interaction_model
   highmod = tumble_data$highmod
@@ -159,7 +166,8 @@ intrxn_plot = function(tumble_data,axis_labels=c('x','y'), legend_title=NA){
   # call our plotting function
   tumble_plot(standard_plot_data,
             axis_labels= axis_labels, 
-            legend_title=legend_title)  
+            legend_title=legend_title,
+            plot_limits = plot_limits)  
 }
 
 # call to set up data
@@ -174,21 +182,30 @@ intrxn_plot(GSS_tumble,axis_labels=c("Respondent's Years of Education",
                           "Predicted Occupational Prestige"), 
             legend_title = "Mother's Years of Education")
 
-### legacy below here
 # call to combine
-op = par()
-#two_plots = layout(matrix(c(1,2),ncol=1))
-par()
-tumble_plot(GSS_tumble,
-            axis_labels=c("Respondent's Years of Education",
+compare_plot = function(tumble_data, axis_labels, legend_title, plot_limits){
+  op = par(no.readonly = TRUE)
+  two_plots = layout(matrix(c(1,2),ncol=1))
+  par(mar=c(4,4,1,1))
+  tumble_plot(tumble_data,
+              axis_labels=c("",axis_labels[2]), 
+              legend_title = legend_title,
+              plot_limits = plot_limits)
+  # call standard interaction plot
+  par(mar=c(4,4,1,1))
+  intrxn_plot(tumble_data,axis_labels=axis_labels, 
+              legend_title = legend_title,
+              plot_limits = plot_limits)
+  show(two_plots)
+  par(op)
+}
+# set up axes for comparisons
+plot_limits = list(c(9,18),c(20,60))
+compare_plot(GSS_tumble, axis_labels=c("Respondent's Years of Education",
                           "Predicted Prestige"), 
-            legend_title = "Mother's Years of Education")
-# call standard interaction plot
-intrxn_plot(GSS_tumble,axis_labels=c("Respondent's Years of Education",
-                          "Predicted Prestige"), 
-            legend_title = "Mother's Years of Education")
-show(two_plots)
-
+            legend_title = "Mother's Years of Education",
+            plot_limits = plot_limits)
+### legacy below here
 # call to plot scatterplot comparisons
 plot(jitter(educ, factor=.4),jitter(maeduc,factor=.8),ann=FALSE,pch=20,cex=.6, col='grey60')
 mtext("Years of Education", side=1, line=2.5, cex=1)
