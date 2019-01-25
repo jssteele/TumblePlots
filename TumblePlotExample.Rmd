@@ -10,232 +10,232 @@ library(knitr)
 knitr::opts_chunk$set(comment='')
 ```
 
-# Graphs of modified interaction plots for the GSS data set
-
 ```{r}
+# Things needed for Tumbleplots.
+# 1) Set up the moderation regression for the outcome.
+# 2) Set up the regression for the target and moderator variable
+# 3) Get the mean and sd for the moderator.
+# 4) Get the mean and sd for the target predictor.
+# 5) Compute 1 sd above and 1 sd below mean for moderator.
+# 6) Plot tumble.
+# 7) Plot scatter with jitter. 
+# 8) Store the outcome, target, and moderator.
+# 9) Store the dataframe used for the models.
+
 library(foreign)
 data <- read.spss("gssspssreduced.sav", to.data.frame=TRUE)
 
-# ABSTRACT OUT
-#outcome
-DV = data$prestg80
-# target predictor
-tarpred = data$educ
-# moderation predictor
-modpred = data$maeduc
-educ = data$educ
-maeduc = data$maeduc
+tumble_set = function(dat, outcome, target, moderator) {
+  # full interaction model
+  intrxn_formula = as.formula(paste(outcome,'~',target,"*",moderator))
+  intrxn_model = lm(intrxn_formula,data=dat)
+  # model between predictors, target as outcome of moderator
+  inputs_formula = as.formula(paste(target,'~',moderator))
+  inputs_model = lm(inputs_formula,data=dat)
+  # descriptives for predictor inputs
+  target_desc = c('mean'=mean(dat[,target]),
+                  'sd'=sd(dat[,target]))
+  moderator_desc = c('mean'=mean(dat[,moderator]),
+                     'sd'=sd(dat[,moderator]))
+  # computation of +/- 1 SD values for moderator
+  lowmod <- moderator_desc['mean']-moderator_desc['sd']
+  highmod <- moderator_desc['mean']+moderator_desc['sd']
+  # target values predicted for low and high moderator
+  inputs_prediction_data = data.frame(c(lowmod,highmod))
+  # reuse names from the inputs model, leave out (Intercept) term
+  names(inputs_prediction_data) = names(coef(inputs_model))[-1]
+  predicted_targets = predict(inputs_model, inputs_prediction_data)
+  # standard error of estimate for target as an outcome
+  target_residual = summary(inputs_model)$sigma
+  # Adjust the predicted values by adding/subtracting the se
+  # low target w/ low moderator
+  # high target w/ low moderator
+  # low target w/ high moderator
+  # high target w/ high moderator
+  adjusted_predicted_targets = c(
+    rep(predicted_targets,each=2) 
+    + rep(c(-1,1)*target_residual,times=2))
+  # construct the prediction data data.frame
+  intrxn_prediction_data = data.frame(
+    adjusted_predicted_targets,          # target input
+    c(lowmod,lowmod,highmod,highmod),    # moderator input
+    c(adjusted_predicted_targets         # interaction term
+      *c(lowmod,lowmod,highmod,highmod)))
+  # names from the interaction model, leave out (Intercept)
+  names(intrxn_prediction_data) = names(coef(intrxn_model))[-1]
+  # add some factor labels to indicate the computations.
+  intrxn_prediction_data = cbind(
+    intrxn_prediction_data,
+    'target'=rep(c('low','high'),times=2),
+    'moderator'=rep(c('low','high'),each=2))
+  tumble_predictions = predict(intrxn_model, intrxn_prediction_data)
+  # update our data.frame
+  prediction=paste(outcome,'hat',sep='_')
+  intrxn_prediction_data[,prediction] = tumble_predictions
+  return(list(
+    'interaction_model'=intrxn_model,
+    'input_model'=inputs_model,
+    'tumble_data'=intrxn_prediction_data,
+    'target'=target,
+    'moderator'=moderator,
+    'outcome'=outcome,
+    'prediction'=prediction,
+    'target_desc'=target_desc,
+    'moderator_desc'=moderator_desc,
+    'highmod'=highmod,
+    'lowmod'=lowmod))
+}
+
+tumble_plot=function(tumble_dat, axis_labels=c('x','y'),legend_title=NA,plot_limits){
+  # name of the column designated as the predictor of interest
+  input = tumble_dat$target
+  output = tumble_dat$prediction
+  plot_data = tumble_dat$tumble_data
+  # blank canvas set up for plotting  
+  if(!missing(plot_limits)){
+    plot(NA, 
+         xlim=plot_limits[[1]], 
+         ylim=plot_limits[[2]], 
+         ann=FALSE)
+  }else{
+    plot(NA, 
+         xlim=range(plot_data[,input]), 
+         ylim=range(plot_data[,output]), 
+         ann=FALSE)
+  }
+  # formula for lines
+  plot_formula = as.formula(paste(output,"~",input))
+  # for each level of the moderator, here "high" and "low"
+  lines(plot_formula, 
+        data=plot_data[plot_data$moderator=='high',],
+        type='o')
+  lines(plot_formula, 
+        data=plot_data[plot_data$moderator!='high',],
+        type='o', lty='dashed')
+  # annotations to the plot
+  mtext(axis_labels[1], side=1, line=2.5, cex=1)
+  mtext(axis_labels[2], side=2, line=2.5, cex=1)
+  # add a legend
+  legend_text=c(
+    paste(round(tumble_dat$highmod,1),'(1 SD Above Mean)'),
+    paste(round(tumble_dat$lowmod,1),'(1 SD Below Mean)'))
+  # add a legend title if specified
+  if(!is.na(legend_title)){
+    legend("topleft",legend_text,cex=.8,
+           lty=c("solid","dashed"), 
+           title=legend_title, 
+           bty='n',inset=.01)
+  }else{legend("topleft",legend_text,cex=.8,
+           lty=c("solid","dashed"), 
+           bty='n',inset=.01)
+  }  
+}
+
+# call to plot standard interaction graph
+intrxn_plot = function(tumble_data,axis_labels=c('x','y'), legend_title=NA, plot_limits){
+  # name of the column designated as the predictor of interest
+  plot_model = tumble_data$interaction_model
+  highmod = tumble_data$highmod
+  lowmod = tumble_data$lowmod
+  target_mean = tumble_data$target_desc['mean']
+  target_sd = tumble_data$target_desc['sd']
+  hightarget = target_mean + target_sd
+  lowtarget = target_mean - target_sd
+  # prediction setup
+  prediction_data = data.frame(
+    rep(c(lowtarget,hightarget), each=2),
+    rep(c(lowmod,highmod), times=2),
+    c(rep(c(lowtarget,hightarget), each=2)
+    *rep(c(lowmod,highmod), times=2)))
+  # reuse names from the model coefficients minus the (Intercept)
+  names(prediction_data) = names(coef(plot_model))[-1]
+  # factor labels for plotting
+  prediction_data = cbind(
+    prediction_data,
+    'target'=rep(c('low','high'),each=2),
+    'moderator'=rep(c('low','high'),times=2))
+  # model predictions
+  standard_predictions = predict(plot_model,prediction_data)
+  prediction_data[,tumble_data$prediction] = standard_predictions
+  standard_plot_data = list(
+    'highmod'=tumble_data$highmod,
+    'lowmod'=tumble_data$lowmod,
+    'target'=tumble_data$target,
+    'prediction'=tumble_data$prediction,
+    'tumble_data'=prediction_data)
+  # call our plotting function
+  tumble_plot(standard_plot_data,
+            axis_labels= axis_labels, 
+            legend_title=legend_title,
+            plot_limits = plot_limits)  
+}
+
+# call to combine
+compare_plot = function(tumble_data, axis_labels, legend_title, plot_limits){
+  op = par(no.readonly = TRUE)
+  two_plots = layout(matrix(c(1,2),ncol=1))
+  par(mar=c(4,4,1,1))
+  tumble_plot(tumble_data,
+              axis_labels=c("",axis_labels[2]), 
+              legend_title = legend_title,
+              plot_limits = plot_limits)
+  # call standard interaction plot
+  par(mar=c(4,4,1,1))
+  intrxn_plot(tumble_data,axis_labels=axis_labels, 
+              legend_title = legend_title,
+              plot_limits = plot_limits)
+  show(two_plots)
+  par(op)
+}
 ```
 
-## Moderated regression
-
-As a first step we fit the full moderated model.
+## Initialize the data
 
 ```{r}
-
-#Step 1
-# ABSTRACT OUT
-mmr <- lm(DV ~ tarpred + modpred + tarpred*modpred)
-
-kable(summary(mmr)$coefficients, digit=c(3,3,3,4), caption='Moderation Model')
+# call to set up data
+GSS_tumble = tumble_set(data, 'prestg80','educ','maeduc')
 ```
 
-Next we create a new value of $M \pm SD$ for the moderator. 
+## Tumble graph call
 
 ```{r}
-#Step 2
-# store the standard variance
-# ABSTRACT OUT
-modvar = var(modpred)
-lowmod <- mean(modpred)-sqrt(modvar)
-highmod <- mean(modpred)+sqrt(modvar)
+# call to plot tumble plot
+tumble_plot(GSS_tumble,
+            axis_labels=c("Respondent's Years of Education",
+                          "Predicted Occupational Prestige"), 
+            legend_title = "Mother's Years of Education")
 
-```
-
-Next we regress the target predictor onto the moderator. From here we predict the new outcomes based on the high and low values for the moderator that we constructed above.
-
-```{r}
-#Step 3
-# ABSTRACT OUT
-reg <- lm(tarpred ~ modpred)
-predst3 <- summary.lm(reg)
-tmlm <- predst3$coeff[1,1] + predst3$coeff[2,1]*lowmod
-tmhm <- predst3$coeff[1,1] + predst3$coeff[2,1]*highmod
-
-# prediction based on the model
-# ABSTRACT OUT
-modpredvals = predict(reg, data.frame('modpred'=c(lowmod,highmod)))
-# display
-kable(cbind('+/- 1 SD'=c(lowmod,highmod),
-            'Predictions'=modpredvals, 
-            'Direct'=c(tmlm,tmhm)), 
-      digits=4, caption='Moderation values and predictions')
-```
-
-To these predicted values we add the standard residual value from the regression involving the predictors.
-
-```{r}
-#Step 4
-# residual variance or error of fit.
-# ABSTRACT OUT
-tresid = summary(reg)$sigma#^2
-hthm <- tmhm+tresid
-lthm <- tmhm-tresid
-htlm <- tmlm+tresid
-ltlm <- tmlm-tresid
-
-# ABSTRACT OUT
-tarmodvals = c(rep(modpredvals,each=2) + rep(c(-1,1)*tresid,times=2))
-names(tarmodvals)=c("ltlm","htlm","lthm","hthm")
-
-# quick comparison
-kable(cbind('crossprod'=tarmodvals, 
-            'direct'=c(ltlm,htlm,lthm,hthm)), 
-      digits=4, caption='Comparison of alternative computations')
-```
-
-Returning to the full moderated regression model we use these new computed values to create the endpoints of our eventual graphs.
-
-```{r}
-#Step 5
-# new attempt using the data from before along with the model
-# ABSTRACT OUT
-newdat = data.frame('tarpred'=tarmodvals, 'modpred'=c(lowmod,lowmod,highmod,highmod))
-build_dat = cbind(newdat, 'target'=rep(c('low','high'),times=2), 'moderator'=rep(c('low','high'),each=2))
-
-# ABSTRACT OUT
-newdat$"tarpred:modpred" = with(newdat, tarpred*modpred)
-predhr <- summary.lm(mmr)
-
-hhhr <- predhr$coeff[1,1] + predhr$coeff[2,1]*hthm + 
-   predhr$coeff[3,1]*highmod + predhr$coeff[4,1]*hthm*highmod
-
-hlhr <- predhr$coeff[1,1] + predhr$coeff[2,1]*htlm + 
-   predhr$coeff[3,1]*lowmod + predhr$coeff[4,1]*htlm*lowmod
-
-lhhr <- predhr$coeff[1,1] + predhr$coeff[2,1]*lthm + 
-   predhr$coeff[3,1]*highmod + predhr$coeff[4,1]*lthm*highmod
-
-llhr <- predhr$coeff[1,1] + predhr$coeff[2,1]*ltlm + 
-   predhr$coeff[3,1]*lowmod + predhr$coeff[4,1]*ltlm*lowmod
-
-predicted_values = c(llhr,hlhr,lhhr,hhhr)
-# ABSTRACT OUT
-newdatout = predict(mmr, newdat)
-# update our built data frame
-build_dat = cbind(build_dat, newdatout)
-
-```
-
-## Plotting set-up
-
-Original Tumble-Plot
-```{r, echo=TRUE}
-#Step 6
-prep <- t(matrix(c(hthm,hhhr,htlm,hlhr,lthm,lhhr,ltlm,llhr),2,4))
-plot(prep[,1],prep[,2],ann=FALSE, ylim=c(20,65),xlim=c(5,22))
-segments(hthm,hhhr,lthm,lhhr)
-segments(htlm,hlhr,ltlm,llhr,lty="dashed")
-mtext("Respondent's Years of Education", side=1, line=2.5, cex=1)
-mtext("Predicted Occupational Prestige", side=2, line=2.5, cex=1)
-legend(6,55,c("14.2 Years (1 SD Above Mean)","7.3 Years (1 SD Below Mean)"),cex=.8, 
-  lty=c("solid","dashed"), title="Mother's Years of Education")
-```
-
-Abstracted out code.
-
-```{r, echo=TRUE}
-plot(NA, xlim=range(build_dat$tarpred), ylim=range(build_dat$newdatout), ann=FALSE)
-with(build_dat[build_dat$moderator=='high',], lines(newdatout ~ tarpred, type='o'))
-with(build_dat[build_dat$moderator!='high',], lines(newdatout ~ tarpred, type='o', lty='dashed'))
-mtext("Respondent's Years of Education", side=1, line=2.5, cex=1)
-mtext("Predicted Occupational Prestige", side=2, line=2.5, cex=1)
-legend("topleft",c("14.2 Years (1 SD Above Mean)","7.3 Years (1 SD Below Mean)"),cex=.8, 
-  lty=c("solid","dashed"), title="Mother's Years of Education", bty='n',inset=.01)
 
 ```
    
    
 ## Standard interaction Graph
 
-Need to update this to match the format from above.
+```{r}
+# call standard interaction plot
+intrxn_plot(GSS_tumble,axis_labels=c("Respondent's Years of Education",
+                          "Predicted Occupational Prestige"), 
+            legend_title = "Mother's Years of Education")
+
+```
+   
+   
+### Both together
 
 ```{r}
-mtar <- mean(tarpred)
-sdtar <- sqrt(var(tarpred))
-htar <- mtar + sdtar
-ltar <- mtar - sdtar
-shhhr <- predhr$coeff[1,1] + predhr$coeff[2,1]*htar + 
-   predhr$coeff[3,1]*highmod + predhr$coeff[4,1]*htar*highmod
-shlhr <- predhr$coeff[1,1] + predhr$coeff[2,1]*htar + 
-   predhr$coeff[3,1]*lowmod + predhr$coeff[4,1]*htar*lowmod
-slhhr <- predhr$coeff[1,1] + predhr$coeff[2,1]*ltar + 
-   predhr$coeff[3,1]*highmod + predhr$coeff[4,1]*ltar*highmod
-sllhr <- predhr$coeff[1,1] + predhr$coeff[2,1]*ltar + 
-   predhr$coeff[3,1]*lowmod + predhr$coeff[4,1]*ltar*lowmod
-sprep <- t(matrix(c(htar,shhhr,htar,shlhr,ltar,slhhr,ltar,sllhr),2,4))
+# set up axes for comparisons
+plot_limits = list(c(9,18),c(20,60))
+compare_plot(GSS_tumble, axis_labels=c("Respondent's Years of Education",
+                          "Predicted Prestige"), 
+            legend_title = "Mother's Years of Education",
+            plot_limits = plot_limits)
 
-plot(sprep[,1],sprep[,2],ann=FALSE, ylim=c(20,60),xlim=c(5,20))
-segments(htar,shhhr,ltar,slhhr,lty="dashed")
-segments(htar,shlhr,ltar,sllhr)
-mtext("Respondent's Years of Education", side=1, line=2.5, cex=1)
-mtext("Predicted Occupational Prestige", side=2, line=2.5, cex=1)
-legend(6,55,c("14.2 Years (1 SD Above Mean)","7.3 Years (1 SD Below Mean)"),cex=.8, 
-  lty=c("solid","dashed"), title="Mother's Years of Education")
 ```
 
-### Both together
-Also need to code up a way to use layout and display them both.
-
-```{r}
-#pdf("gssinteract.pdf", width = 8, height = 10 )
-# op=par(mfrow=c(2,1))
-# plot(sprep[,1],sprep[,2],ann=FALSE, ylim=c(30,60),xlim=c(8,18),pch=21)
-# segments(htar,shhhr,ltar,slhhr)
-# segments(htar,shlhr,ltar,sllhr,lty="dashed")
-# mtext("Years of Education", side=1, line=2.5, cex=1)
-# mtext("Predicted Occupational Prestige", side=2, line=2.5, cex=1)
-# legend(7.7,60,c("14.2 Years (1 SD Above Mean)","7.3 Years (1 SD Below Mean)"),cex=.8, 
-#   lty=c("solid","dashed"), title="Mother's Years of Education")
-# plot(prep[,1],prep[,2],ann=FALSE, ylim=c(30,60),xlim=c(8,18),pch=24)
-# segments(hthm,hhhr,lthm,lhhr)
-# segments(htlm,hlhr,ltlm,llhr,lty="dashed")
-# mtext("Years of Education", side=1, line=2.5, cex=1)
-# mtext("Predicted Occupational Prestige", side=2, line=2.5, cex=1)
-# legend(7.7,60,c("14.2 Years (1 SD Above Mean)","7.3 Years (1 SD Below Mean)"),cex=.8, 
-#   lty=c("solid","dashed"), title="Mother's Years of Education")
-# par(op)
-
-# Bivariate Distribution of Target and Moderator
-
-#pdf("gssbivariate.pdf", width = 8, height = 10)
-plot(jitter(educ, factor=.4),jitter(maeduc,factor=.8),ann=FALSE,pch=20,cex=.6, col='grey60')
-mtext("Years of Education", side=1, line=2.5, cex=1)
-mtext("Mother's Years of Education", side=2, line=2.5, cex=1)
-abline(v = ltar, lty="dashed")
-abline(v = htar)
-abline(h = lowmod, lty="dashed")
-abline(h = highmod)
-legend(0,20,c("1 SD Below Mean","1 SD Above Mean"),cex=.8, lty=c("dashed","solid"), title="Reference Lines")
-points(hthm,highmod,pch=17)
-points(htlm,lowmod,pch=17)
-points(lthm,highmod,pch=17)
-points(ltlm,lowmod,pch=17)
-points(htar,highmod,pch=19)
-points(htar,lowmod,pch=19)
-points(ltar,highmod,pch=19)
-points(ltar,lowmod,pch=19)
-# points(hthm,highmod,pch=24)
-# points(htlm,lowmod,pch=24)
-# points(lthm,highmod,pch=24)
-# points(ltlm,lowmod,pch=24)
-# points(htar,highmod,pch=21)
-# points(htar,lowmod,pch=21)
-# points(ltar,highmod,pch=21)
-# points(ltar,lowmod,pch=21)
-
-#pdf("gssbivariate.pdf", width = 8, height = 10)
-# plot(jitter(educ, factor=.4),jitter(maeduc,factor=.4),ann=FALSE,pch=20)
+```{r, echo=FALSE}
+### legacy below here
+# call to plot scatterplot comparisons
+# plot(jitter(educ, factor=.4),jitter(maeduc,factor=.8),ann=FALSE,pch=20,cex=.6, col='grey60')
 # mtext("Years of Education", side=1, line=2.5, cex=1)
 # mtext("Mother's Years of Education", side=2, line=2.5, cex=1)
 # abline(v = ltar, lty="dashed")
@@ -243,15 +243,13 @@ points(ltar,lowmod,pch=19)
 # abline(h = lowmod, lty="dashed")
 # abline(h = highmod)
 # legend(0,20,c("1 SD Below Mean","1 SD Above Mean"),cex=.8, lty=c("dashed","solid"), title="Reference Lines")
-# points(hthm,highmod,pch=24)
-# points(htlm,lowmod,pch=24)
-# points(lthm,highmod,pch=24)
-# points(ltlm,lowmod,pch=24)
-# points(htar,highmod,pch=21)
-# points(htar,lowmod,pch=21)
-# points(ltar,highmod,pch=21)
-# points(ltar,lowmod,pch=21)
+# points(hthm,highmod,pch=17)
+# points(htlm,lowmod,pch=17)
+# points(lthm,highmod,pch=17)
+# points(ltlm,lowmod,pch=17)
+# points(htar,highmod,pch=19)
+# points(htar,lowmod,pch=19)
+# points(ltar,highmod,pch=19)
+# points(ltar,lowmod,pch=19)
 
 ```
-
-
